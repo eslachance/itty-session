@@ -10,7 +10,12 @@ export const createSessionsMiddleware = async (env, db) => {
   return {
     sessionPreflight: async (request) => {
       const cookies = parseCookies(request.headers.get('Cookie') || '');
-      if (!cookies.session) {
+      if (cookies.session) {
+        if (!env.__sessions.has(cookies.session)) {
+          env.__sessions.set(cookies.session, {}); 
+        }
+        request.session = env.__sessions.get(cookies.session);
+      } else {
         const sessionID = crypto.randomUUID();
         env.__sessions.set(sessionID, {});
         request.session = env.__sessions.get(sessionID);
@@ -23,13 +28,10 @@ export const createSessionsMiddleware = async (env, db) => {
             maxAge: 60 * 60 * 24 * 365 * 10,
           })
         );
-      } else {
-        const sessionID = cookies.session;
-        request.session = await env.__sessions.get(sessionID);
       }
     },
 
-    destroy: async () => {
+    destroy: async (request) => {
       const cookies = parseCookies(request.headers.get('Cookie') || '');
       env.__sessions.delete(cookies.session);
       cookieJar.push(
