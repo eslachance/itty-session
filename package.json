@@ -1,6 +1,6 @@
 {
   "name": "itty-session",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Session management middleware for itty-router",
   "main": "src/index.js",
   "type": "module",
@@ -8,8 +8,15 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eslachance/enmap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eslachance/enmap/issues"
+  },
+  "author": "Eric-Sebastien Lachance <eslachance@gmail.com> (https://alterion.dev/)", 
+  "license": "MIT",
   "dependencies": {
     "cookie": "^1.0.1"
   }
