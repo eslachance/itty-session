@@ -10,10 +10,10 @@
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eslachance/enmap.git"
+    "url": "git+https://github.com/eslachance/itty-session.git"
   },
   "bugs": {
-    "url": "https://github.com/eslachance/enmap/issues"
+    "url": "https://github.com/eslachance/itty-session/issues"
   },
   "author": "Eric-Sebastien Lachance <eslachance@gmail.com> (https://alterion.dev/)", 
   "license": "MIT",
