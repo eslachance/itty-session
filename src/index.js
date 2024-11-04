@@ -1,5 +1,4 @@
 import { parse as parseCookies, serialize as serializeCookies } from 'cookie';
-// import BriteLite from './britelite';
 
 export const createSessionsMiddleware = async (env, db) => {
   env.__sessions =
@@ -7,23 +6,14 @@ export const createSessionsMiddleware = async (env, db) => {
     new Map();
 
   let cookieJar = [];
-  let sessionID;
 
   return {
     sessionPreflight: async (request) => {
       const cookies = parseCookies(request.headers.get('Cookie') || '');
-      console.log('itty-sessions preflight, cookies: ', cookies);
       if (!cookies.session) {
-        sessionID = crypto.randomUUID();
-        console.log('Checking Data for: ',sessionID);
-        await env.__sessions.set(sessionID, {});
-        let session;
-        try {
-          session = await env.__sessions.get(sessionID);
-        } catch (e) {
-          console.log('Error getting session: ', e);
-        }
-        request.session = session;
+        const sessionID = crypto.randomUUID();
+        env.__sessions.set(sessionID, {});
+        request.session = env.__sessions.get(sessionID);
         cookieJar.push(
           serializeCookies('session', sessionID, {
             httpOnly: true,
@@ -34,16 +24,14 @@ export const createSessionsMiddleware = async (env, db) => {
           })
         );
       } else {
-        sessionID = cookies.session;
-        console.log('Checking Data for: ',sessionID);
-        console.log('Saved data: ', await env.__sessions.get(sessionID));
-        request.session = await env.__sessions.get(sessionID) || {};
+        const sessionID = cookies.session;
+        request.session = await env.__sessions.get(sessionID);
       }
     },
 
     destroy: async () => {
-      await env.__sessions.delete(sessionID);
-      sessionID = null;
+      const cookies = parseCookies(request.headers.get('Cookie') || '');
+      env.__sessions.delete(cookies.session);
       cookieJar.push(
         serializeCookies('session', '', {
           httpOnly: true,
