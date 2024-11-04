@@ -1,6 +1,6 @@
 {
   "name": "itty-session",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Session management middleware for itty-router",
   "main": "src/index.js",
   "type": "module",
@@ -15,7 +15,7 @@
   "bugs": {
     "url": "https://github.com/eslachance/itty-session/issues"
   },
-  "author": "Eric-Sebastien Lachance <eslachance@gmail.com> (https://alterion.dev/)", 
+  "author": "Eric-Sebastien Lachance <eslachance@gmail.com> (https://alterion.dev/)",
   "license": "MIT",
   "dependencies": {
     "cookie": "^1.0.1"
