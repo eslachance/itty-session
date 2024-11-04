@@ -35,7 +35,7 @@ Will be working on more specific examples but here's one for cloudflare workers 
 
 ```js
 import { Router, json } from 'itty-router';
-import { createSessionsMiddleware } from 'itty-sessions.js';
+import { createSessionsMiddleware } from 'itty-sessions';
 
 export default {
   async fetch(request, env, ctx) {
