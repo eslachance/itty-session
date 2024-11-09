@@ -1,6 +1,6 @@
 # itty-session
 
-itty-session is a cookie-based session middleware for itty-router.
+itty-session is a cookie-based session middleware for itty-router on Cloudflare Workers.
 
 > This is not an official library and is not affiliated with Kevin R. Whitley.
 
@@ -29,80 +29,92 @@ pnpm install itty-session
 yarn add itty-session
 ```
 
+## Requirements
+
+Itty-session requires a database to store session data.
+
+Currently the only database supported is Cloudflare's [D1](https://developers.cloudflare.com/d1/).
+
+By default, itty-session will use the `SESSIONS` database and the `sessions` table.
+
+Expected `wrangler.toml` example configuration (with a second database):
+
+```toml
+d1_databases = [
+    { binding = "DB", database_name = "my-database", database_id = "ABCD-0123-4567-8901-ABCD-EFGH" },
+    { binding = "SESSIONS", database_name = "my-sessions", database_id = "ABCD-0123-4567-8901-ABCD-EFGH" },
+]
+```
+
+If you're using a different database, you can specify it via the `dbName` option, but make sure it matches the binding name in your `wrangler.toml` file.
+A table named `sessions` is also required and will not automatically be created. Make sure it matches the table name in your `wrangler.toml` file.
+
+Table configuration for `sessions`:
+
+```sql
+CREATE TABLE "sessions" (
+	"sid"	TEXT UNIQUE,
+	"data"	TEXT,
+	"expiry"	INTEGER
+);
+```
+
+> You can use [Wrangler](https://developers.cloudflare.com/workers/wrangler/commands/#execute) to create the table for you.
+> Example: `npx wrangler d1 execute karaoke-sessions --local --file=./sessions.sql` (or `--remote` to push to remote D1 instance)
+
 ## Usage
 
-Will be working on more specific examples but here's one for cloudflare workers using itty-router as a base.
+The following example is for cloudflare workers using itty-router as a base.
 
 ```js
-import { Router, json } from 'itty-router';
-import { createSessionsMiddleware } from 'itty-session';
+import { AutoRouter, cors, withContent } from 'itty-router';
+import { createSessionsMiddleware } from './itty-session';
 
-export default {
-  async fetch(request, env, ctx) {
-    const { sessionPreflight, destroy, sessionify } = await createSessionsMiddleware(env, env.DB);
-    if (!env.__router) {
+const { sessionPreflight, sessionify } = createSessionsMiddleware({
+  dbName: 'SESSIONS', // default
+  tableName: 'sessions', // default
+  logging: true, // default false
+});
 
-      const router = Router({
-        before: [sessionPreflight],  // 
-        finally: [sessionify],   // , 
-      });
+const router = AutoRouter({
+  before: [sessionPreflight],
+  finally: [sessionify],
+});
 
-      router.post('/login', async ({ body }) => {
-        request.session.username = "test";
-        request.session.isLoggedIn = true;
-        return json({
-          success: true,
-          message: 'logged in',
-          user: {
-            username: "test",
-            avatar: 'https://github.com/user-attachments/assets/ef42a076-4539-4391-b6e8-f15a95c639f2',
-            role: 'admin',
-            isLoggedIn: true,
-          }
-        });
-      });
+router.post('/login', withContent, async (request) => {
+  const { content } = request;
+  // placeholder for real auth, please don't do this!
+  if (!content?.username !== 'test' || !content?.password !== 'test') {
+    return {
+      success: false,
+      message: 'invalid credentials',
+    };
+  }
+  // creds are correct
+  request.session.username = 'test';
+  request.session.isLoggedIn = true;
 
-      router.get('/me', () => {
-        if (!request.session?.isLoggedIn) {
-           return json({ message: 'not logged in' });
-         }
-        return json({
-          success: true,
-          user: {
-            username: request.session?.username,
-            avatar: 'https://github.com/user-attachments/assets/ef42a076-4539-4391-b6e8-f15a95c639f2',
-            role: 'admin',
-            isLoggedIn: true,
-          }
-        });
-      });
+  return {
+    success: true,
+    message: 'logged in',
+    user: {
+      username: user.username,
+      isLoggedIn: true,
+    },
+  };
+});
 
-      router.get('/logout', async () => {
-        request.session.username = null;
-        request.session.isLoggedIn = false;
-        await destroy();
-        return json({
-          success: true,
-          message: 'fake logged out',
-        });
-      });
+router.get('/logout', async (request) => {
+  request.session?.destroy();
 
-      router.get('/sessions/clear', async () => {
-        await env.__sessions.clear();
-        return json({
-          success: true,
-          message: 'sessions cleared',
-        });
-      });
+  return {
+    success: true,
+    message: 'logged out',
+  };
+});
 
-      // 404 for everything else
-      router.all('*', () => new Response('Not Found.', { status: 404 }));
-      env.__router = router;
-    }
 
-    return env.__router.fetch(request);
-  },
-};
+export default router;
 ```
 
 ## Future Changes
@@ -112,7 +124,6 @@ As I continue developing this, a few items to take care of:
 - More examples, including a basic non-cloudflare one
 - Docs on specific methods and options
 - Cookie settings (with defaults)
-- Providers for actual persistence (d1, mongo, mysql, bla bla bla)
+- Providers for persistence outside D1/Cloudflare (mongo, mysql, bla bla bla)
 - More options?
 - Got any suggestions? [Feel free to open an issue](https://github.com/eslachance/itty-session/issues)
-
