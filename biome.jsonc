@@ -7,16 +7,17 @@
 	  "defaultBranch": "main"
 	},
 	"linter": {
+    "enabled": true,
 	  "rules": {
-		"suspicious": {
-		  "noExplicitAny": "off"
-		},
-		"performance": {
-			"noDelete": "off"
-		},
-		"style": {
-			"noParameterAssign": "off"
-		}
+      "suspicious": {
+        "noExplicitAny": "off"
+      },
+      "performance": {
+        "noDelete": "off"
+      },
+      "style": {
+      	"noParameterAssign": "off"
+      }
 	  }
 	},
 	"formatter": {
@@ -29,23 +30,21 @@
 	},
 	"javascript": {
 	  "formatter": {
-		"arrowParentheses": "always",
-		"bracketSameLine": true,
-		"bracketSpacing": true,
-		"jsxQuoteStyle": "double",
-		"quoteProperties": "asNeeded",
-		"quoteStyle": "single",
-		"semicolons": "always",
-		"trailingCommas": "all"
+      "enabled": true,
+      "arrowParentheses": "always",
+      "bracketSameLine": true,
+      "bracketSpacing": true,
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "all"
 	  }
 	},
 	"json": {
 	  "formatter": {
-		"trailingCommas": "none"
+	  	"trailingCommas": "none"
 	  },
 	  "parser": {
-		"allowComments": true
+  		"allowComments": true
 	  }
 	}
-  }
-  
+}

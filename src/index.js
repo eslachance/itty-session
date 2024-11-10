@@ -1,75 +1,79 @@
 import { parse as parseCookies, serialize as serializeCookies } from 'cookie';
+import { log } from './utils/logger.js';
 
-const log = (doLog, level, ...message) => {
-  if(Array.isArray(level)) {
-    message = level;
-    level = 'log';
-  }
-  if(doLog) {
-    console[level](`[${new Date().toISOString()}: ${level}]`, ...message);
-  }
-}
+let checkedDatabase = false;
+let provider;
 
 export const createSessionsMiddleware = ({
-  dbName = 'SESSIONS',
-  tableName = 'sessions',
+  Provider,
+  providerOptions = {},
   logging = false,
 } = {}) => ({
   sessionPreflight: async (request, env) => {
-    if(!env[dbName]) {
-      log(true, 'error', `D1 Database not found in environment. Please make sure to setup ${dbName} in your wrangler.toml file.`);
-      throw new Error(`D1 Database not found in environment. Please make sure to setup ${dbName} in your wrangler.toml file.`);
+    try {
+      provider = new Provider({ env, logging, ...providerOptions });
+    } catch (error) {
+      log(true, 'error', 'Error while creating provider: ', error);
+      throw new Error('Error while creating provider: ', error);
     }
+    
+    if(!checkedDatabase) {
+      checkedDatabase = true;
+      await provider.precheck();
+    }
+
     request.cookieJar = [];
     const cookies = parseCookies(request.headers.get('Cookie') || '');
-    log(logging, 'log', 'Session cookie:', cookies?.session);
+    log(logging, 'log', 'Session cookie:', cookies?.sid);
+    
     let sessionData;
-    if(cookies?.session) {
+    
+    if (cookies?.sid) {
       try {
-        sessionData = await env[dbName].prepare(`SELECT * FROM ${tableName} WHERE sid = ?`).bind(cookies?.session).first();
+        sessionData = await provider.getSession(cookies?.sid);
       } catch (error) {
         sessionData = "{}";
-        log(logging, 'error', `Error while reading session data for ${cookies?.session}: `, error);
+        log(logging, 'error', `Error while reading session data for ${cookies?.sid}: `, error);
       }
     } else {
       sessionData = "{}";
     }
-    log(logging, 'log', `Existing sessionData stored in DB for ${cookies?.session} is: [${typeof sessionData?.data}]`,  sessionData?.data);
+    log(logging, 'log', `Existing sessionData stored in DB for ${cookies?.sid} is: [${typeof sessionData?.data}]`,  sessionData?.data);
     request.session = sessionData?.data ? JSON.parse(sessionData?.data) : null;
     
     if (!request.session) {
-      const sessionID = crypto.randomUUID();
-      log(logging, 'log', `Creating new session with ID ${sessionID}`);
       request.session = {};
-      const maxAge = 60 * 60 * 24 * 365 * 10;
       try {
-        await env[dbName].prepare(`INSERT INTO ${tableName} (sid, data, expiry) VALUES (?, ?, ?)`).bind(sessionID, JSON.stringify({}), Date.now() + maxAge).run();
+        request.sessionID = await provider.createSession();        
       } catch (error) {
         log(logging, 'error', 'Error while creating session data: ', error);
-        log(logging, 'log', `INSERT INTO ${tableName} (sid, data, expiry) VALUES (${sessionID}, ${JSON.stringify({})}, ${Date.now() + maxAge})`);
+        throw new Error('Error while creating session data: ', error);
       }
+      log(logging, 'log', `Created new session with ID ${request.sessionID}`);
       request.cookieJar.push(
-        serializeCookies('session', sessionID, {
+        serializeCookies('sid', request.sessionID, {
           httpOnly: true,
           secure: true,
           path: '/',
           sameSite: 'strict',
-          maxAge,
+          maxAge: 60 * 60 * 24 * 365 * 10,
         })
       );
+    } else {
+      request.sessionID = cookies?.sid;
     }
     
     request.session.destroy = async () => {
       const cookies = parseCookies(request.headers.get('Cookie') || '');
-      log(logging, 'log', `Destroying session with ID ${cookies?.session}`);
+      log(logging, 'log', `Destroying session with ID ${cookies?.sid}`);
       try {
-        await env[dbName].prepare(`DELETE FROM ${tableName} WHERE sid = ?`).bind(cookies?.session).run();
+        await provider.destroySession(cookies?.sid);
       } catch (error) {
         log(logging, 'error', 'Error while destroying session data: ', error);
       }
 
       request.cookieJar.push(
-        serializeCookies('session', '', {
+        serializeCookies('sid', '', {
           httpOnly: true,
           secure: false,
           path: '/',
@@ -80,20 +84,18 @@ export const createSessionsMiddleware = ({
     }
   },    
 
-  sessionify: async (response, request, env, ctx) => {
+  sessionify: async (response, request, _env, ctx) => {
     if (!response) {
       throw new Error('No fetch handler responded and no upstream to proxy to specified.');
     }
-    const cookies = parseCookies(request.headers.get('Cookie') || '');
-    
     const { headers, status, body } = response;
     const existingHeaders = Object.fromEntries(headers);
     const responseCookies = request.cookieJar.join('; ');
     
     delete request.session.destroy;
-    log(logging, 'log', `Updating session data for session ID ${cookies?.session} with data: `, request.session);
+    log(logging, 'log', `Updating session data for session ID ${request.sessionID} with data: `, request.session);
     try {
-      ctx.waitUntil(env[dbName].prepare(`UPDATE ${tableName} SET data = ? WHERE sid = ?`).bind(JSON.stringify(request.session), cookies?.session).run());
+      ctx.waitUntil(provider.setSession(request.sessionID, request.session));
     } catch (error) {
       log(logging, 'error', 'Error while updating session data: ', error);
     }
