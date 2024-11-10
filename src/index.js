@@ -16,6 +16,10 @@ export const createSessionsMiddleware = ({
   logging = false,
 } = {}) => ({
   sessionPreflight: async (request, env) => {
+    if(!env[dbName]) {
+      log(true, 'error', `D1 Database not found in environment. Please make sure to setup ${dbName} in your wrangler.toml file.`);
+      throw new Error(`D1 Database not found in environment. Please make sure to setup ${dbName} in your wrangler.toml file.`);
+    }
     request.cookieJar = [];
     const cookies = parseCookies(request.headers.get('Cookie') || '');
     log(logging, 'log', 'Session cookie:', cookies?.session);
