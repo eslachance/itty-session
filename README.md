@@ -68,12 +68,16 @@ The following example is for cloudflare workers using itty-router as a base.
 
 ```js
 import { AutoRouter, cors, withContent } from 'itty-router';
-import { createSessionsMiddleware } from './itty-session';
+import { createSessionsMiddleware } from 'itty-session';
+import D1Provider from 'itty-session/providers/d1';
 
 const { sessionPreflight, sessionify } = createSessionsMiddleware({
-  dbName: 'SESSIONS', // default
-  tableName: 'sessions', // default
-  logging: true, // default false
+  logging: true,
+  Provider: D1Provider,
+  providerOptions: {
+    dbName: 'SESSIONS',
+    tableName: 'sessions',
+  }
 });
 
 const router = AutoRouter({
