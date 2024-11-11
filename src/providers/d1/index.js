@@ -57,24 +57,32 @@ class D1Provider extends BaseProvider {
   async createSession() {
     const sessionID = crypto.randomUUID();
     log(this.#logging, 'log', `Creating new session with ID ${sessionID}`);
-    const maxAge = 60 * 60 * 24 * 365 * 10;
-    await this.#db.prepare(`INSERT INTO ${this.#tableName} (sid, data, expiry) VALUES (?, ?, ?)`).bind(sessionID, "{}", Date.now() + maxAge).run();
+    const maxAge = this.#options.maxAge ?? 60 * 60 * 24 * 365 * 10;
+    await this.#db
+      .prepare(`INSERT INTO ${this.#tableName} (sid, data, expiry) VALUES (?, ?, ?)`)
+      .bind(sessionID, '{}', Date.now() + maxAge)
+      .run();
     return sessionID;
   }
 
   async getSession(sid) {
-    return await this.#db.prepare(`SELECT * FROM ${this.#tableName} WHERE sid = ?`).bind(sid).first();
+    return await this.#db
+      .prepare(`SELECT * FROM ${this.#tableName} WHERE sid = ?`)
+      .bind(sid)
+      .first();
   }
-  
+
   async setSession(sid, data) {
     log(this.#logging, 'log', `Updating session data for session ID ${sid} with data: `, data);
-    await this.#db.prepare(`UPDATE ${this.#tableName} SET data = ? WHERE sid = ?`).bind(JSON.stringify(data), sid).run();
+    await this.#db
+      .prepare(`UPDATE ${this.#tableName} SET data = ? WHERE sid = ?`)
+      .bind(JSON.stringify(data), sid)
+      .run();
   }
-  
+
   async destroySession(sid) {
     await this.#db.prepare(`DELETE FROM ${this.#tableName} WHERE sid = ?`).bind(sid).run();
   }
-
-};
+}
 
 export default D1Provider;
